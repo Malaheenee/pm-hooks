@@ -1,0 +1,5 @@
+INTEL_AUDIO_POWERSAVE=true
+SATA_ALPM_ENABLE=true
+HOOK_BLACKLIST="laptop-mode xfs_buffer pcie_aspm"
+SLEEP_MODULE="kernel"
+SUSPEND_MODULES=""

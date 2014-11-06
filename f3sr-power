@@ -1,0 +1,85 @@
+# CPU parameters
+CTL_CPU="/sys/devices/system/cpu"
+CPU_GOVERNOR="conservative"
+
+# Kernel parameters
+CTL_VM="/proc/sys/vm"
+VM_DIRTY_WRITEBACK=$(cat $CTL_VM/dirty_writeback_centisecs)
+VM_LAPTOP_MODE=$(cat $CTL_VM/laptop_mode)
+
+# Brightness adjustment
+CTL_BACKLIGHT="/sys/class/backlight/acpi_video0"
+LCD_PREV_BRIGHTNESS=$(cat $CTL_BACKLIGHT/brightness)
+
+# Radeon powersave mode (requires 3.11 & above)
+CTL_VGA_DEVICE="/sys/class/drm/card0/device"
+VGA_POWER_DPM_STATE=$(cat $CTL_VGA_DEVICE/power_dpm_state)
+
+# Unused modules
+MODULES="uvcvideo"
+MODULE_COMMAND="--remove"
+
+# Other variables
+CURRENT_MODE="ac"
+
+# Set variables on ac_power ('false' in pm-utils)
+ac_power()
+{
+    CURRENT_MODE="ac_power"
+    CPU_GOVERNOR="conservative"
+    LCD_BRIGHTNESS=$(cat $CTL_BACKLIGHT/max_brightness)
+    VM_LAPTOP_MODE=0
+    VM_DIRTY_WRITEBACK=500
+    VGA_POWER_DPM_STATE="balanced"
+    MODULE_COMMAND=""
+}
+
+# Set variables on battery ('true' in pm-utils)
+battery_power() {
+    CURRENT_MODE="battery"
+    CPU_GOVERNOR="powersave"
+    LCD_BRIGHTNESS=$(expr 30 \* $LCD_PREV_BRIGHTNESS / 100)
+    VM_LAPTOP_MODE=5
+    VM_DIRTY_WRITEBACK=60000
+    VGA_POWER_DPM_STATE="battery"
+    MODULE_COMMAND="--remove"
+}
+
+# Apply settings
+apply_settings() {
+    echo -n "Setting user-specific parameters for $CURRENT_MODE... "
+
+    echo $LCD_BRIGHTNESS > $CTL_BACKLIGHT/brightness
+    
+    for CPU in $CTL_CPU/* ; do
+      if [ -e $CPU/cpufreq ] ; then
+        echo $CPU_GOVERNOR > $CPU/cpufreq/scaling_governor
+      fi
+    done
+
+    echo $VGA_POWER_DPM_STATE > $CTL_VGA_DEVICE/power_dpm_state
+
+    echo $VM_LAPTOP_MODE > $CTL_VM/laptop_mode
+    echo $VM_DIRTY_WRITEBACK > $CTL_VM/dirty_writeback_centisecs
+    
+    for i in $MODULES ; do
+      modprobe $MODULE_COMMAND $i
+    done
+
+    [ "$?" -eq 0 ] && echo Done. || echo Failed.
+}
+
+# Run it in pm-utils
+case "$1" in
+  false)
+    ac_power
+    apply_settings
+  ;;
+  true)
+    battery_power
+    apply_settings
+  ;;
+  *)
+    exit $NA
+  ;;
+esac
