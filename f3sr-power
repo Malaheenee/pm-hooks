@@ -8,8 +8,8 @@ VM_DIRTY_WRITEBACK=$(cat $CTL_VM/dirty_writeback_centisecs)
 VM_LAPTOP_MODE=$(cat $CTL_VM/laptop_mode)
 
 # Brightness adjustment
-CTL_BACKLIGHT="/sys/class/backlight/acpi_video0"
-LCD_PREV_BRIGHTNESS=$(cat $CTL_BACKLIGHT/brightness)
+CTL_BACKLIGHT="/sys/class/backlight/acpi_video0/brightness"
+LCD_BRIGHT_FILE="$STORAGEDIR/lcd_brightness"
 
 # Radeon powersave mode (requires 3.11 & above)
 CTL_VGA_DEVICE="/sys/class/drm/card0/device"
@@ -20,14 +20,13 @@ MODULES="uvcvideo"
 MODULE_COMMAND="--remove"
 
 # Other variables
-CURRENT_MODE="ac"
+CURRENT_MODE="ac_power"
 
 # Set variables on ac_power ('false' in pm-utils)
-ac_power()
-{
+ac_power() {
     CURRENT_MODE="ac_power"
     CPU_GOVERNOR="conservative"
-    LCD_BRIGHTNESS=$(cat $CTL_BACKLIGHT/max_brightness)
+    LCD_BRIGHTNESS=$(cat $LCD_BRIGHT_FILE)
     VM_LAPTOP_MODE=0
     VM_DIRTY_WRITEBACK=500
     VGA_POWER_DPM_STATE="balanced"
@@ -38,6 +37,7 @@ ac_power()
 battery_power() {
     CURRENT_MODE="battery"
     CPU_GOVERNOR="powersave"
+    LCD_PREV_BRIGHTNESS=$(cat $CTL_BACKLIGHT > $LCD_BRIGHT_FILE && cat $LCD_BRIGHT_FILE)
     LCD_BRIGHTNESS=$(expr 30 \* $LCD_PREV_BRIGHTNESS / 100)
     VM_LAPTOP_MODE=5
     VM_DIRTY_WRITEBACK=60000
@@ -49,7 +49,7 @@ battery_power() {
 apply_settings() {
     echo -n "Setting user-specific parameters for $CURRENT_MODE... "
 
-    echo $LCD_BRIGHTNESS > $CTL_BACKLIGHT/brightness
+    echo $LCD_BRIGHTNESS > $CTL_BACKLIGHT
     
     for CPU in $CTL_CPU/* ; do
       if [ -e $CPU/cpufreq ] ; then
