@@ -43,7 +43,7 @@ battery_power() {
 apply_settings() {
     echo -n "Setting user-specific parameters for $CURRENT_MODE... "
 
-    echo $LCD_BRIGHTNESS > $CTL_BACKLIGHT/brightness
+    echo $LCD_BRIGHTNESS > $CTL_BACKLIGHT
     
     for CPU in $CTL_CPU/* ; do
       if [ -e $CPU/cpufreq ] ; then
